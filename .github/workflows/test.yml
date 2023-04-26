@@ -1,0 +1,29 @@
+name: Storybook tests
+
+on: [push]
+
+jobs:
+  storybook-test:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: storybook-tests-${{ github.head_ref || github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v3
+      - name: Use Node.js 16.x
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16.x
+      - name: yarn install
+        run: yarn
+      - name: yarn build # ensures type-checks and compiles
+        run: yarn build
+      - name: install playwright
+        run: npx playwright install --with-deps
+      - name: build storybook
+        run: yarn build-storybook --quiet
+      - name: start and test storybook
+        run: |
+          npx concurrently -k -s first -n "SB,TEST" -c "magenta,blue" \
+            "npx http-server storybook-static --port 6006 --silent" \
+            "npx wait-on tcp:6006 && yarn storybook:test"
